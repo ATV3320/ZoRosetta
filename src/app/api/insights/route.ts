@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       newCoins: newCoins.tokens,
     };
 
-    // Get AI analysis
+    // Get AI analysis (now returns placeholder data)
     const analysis = await analyzeMarketData(
       [
         ...(topGainers.tokens || []),
@@ -30,7 +30,6 @@ export async function GET(request: Request) {
       ],
       timeframe
     );
-
 
     return NextResponse.json({
       data: analysisData,

@@ -1,9 +1,10 @@
 import OpenAI from 'openai';
 import { ZoraToken } from './zora';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Commenting out OpenAI initialization to prevent API key requirement
+// const openai = new OpenAI({
+//   apiKey: process.env.OPENAI_API_KEY,
+// });
 
 export interface AIAnalysis {
   sentiment: number;
@@ -15,6 +16,15 @@ export async function analyzeMarketData(
   tokens: ZoraToken[],
   timeframe: string = '24h'
 ): Promise<AIAnalysis> {
+  // Returning placeholder data instead of making OpenAI API call
+  return {
+    sentiment: 50,
+    insights: ["AI analysis temporarily disabled"],
+    recommendations: ["Please check back later for AI-powered recommendations"]
+  };
+
+  // Commenting out OpenAI API call
+  /*
   try {
     const prompt = `
       Analyze the following Zora network token data for the past ${timeframe}:
@@ -80,4 +90,5 @@ export async function analyzeMarketData(
     console.error('Error analyzing market data:', error);
     throw error;
   }
+  */
 } 

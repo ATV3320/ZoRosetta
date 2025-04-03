@@ -19,7 +19,7 @@ export default function TrendingProjects() {
   useEffect(() => {
     const fetchTrendingTokens = async () => {
       try {
-        const response = await fetch('/api/zora?type=topGainers&count=3');
+        const response = await fetch('/api/zora?type=topVolume&count=3');
         if (!response.ok) {
           throw new Error('Failed to fetch trending tokens');
         }

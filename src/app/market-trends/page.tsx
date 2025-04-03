@@ -8,14 +8,14 @@ import MostValuable from '@/components/market/MostValuable'
 import WalletConnect from '@/components/WalletConnect'
 
 const tabs = [
-  { id: 'gainers', name: 'Top Gainers' },
   { id: 'volume', name: 'Top Volume' },
   { id: 'valuable', name: 'Most Valuable' },
+  { id: 'gainers', name: 'Top Gainers' },
   { id: 'new', name: 'New Coins' },
 ]
 
 export default function MarketTrends() {
-  const [activeTab, setActiveTab] = useState('gainers')
+  const [activeTab, setActiveTab] = useState('volume')
 
   return (
     <div className="flex flex-col min-h-screen">
