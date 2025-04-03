@@ -23,9 +23,14 @@ export async function GET(request: Request) {
 
     // Get AI analysis
     const analysis = await analyzeMarketData(
-      [...topGainers.tokens, ...topVolume.tokens, ...newCoins.tokens],
+      [
+        ...(topGainers.tokens || []),
+        ...(topVolume.tokens || []),
+        ...(newCoins.tokens || [])
+      ],
       timeframe
     );
+
 
     return NextResponse.json({
       data: analysisData,

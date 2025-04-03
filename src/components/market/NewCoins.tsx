@@ -23,15 +23,17 @@ export default function NewCoins() {
         throw new Error('Invalid response format')
       }
 
-      const newTokens = response.data.exploreList.edges.map(edge => ({
-        name: edge.node.name,
-        symbol: edge.node.symbol,
-        marketCapDelta24h: edge.node.marketCapDelta24h,
-        marketCap: edge.node.marketCap,
-        volume24h: edge.node.volume24h,
-        uniqueHolders: edge.node.uniqueHolders,
-        createdAt: edge.node.createdAt,
-      }))
+      const newTokens = response.data.exploreList.edges
+        .filter(edge => edge.node)
+        .map(edge => ({
+          name: edge.node!.name || '',
+          symbol: edge.node!.symbol || '',
+          marketCapDelta24h: edge.node!.marketCapDelta24h || '',
+          marketCap: edge.node!.marketCap || '',
+          volume24h: edge.node!.volume24h || '',
+          uniqueHolders: edge.node!.uniqueHolders || 0,
+          createdAt: edge.node!.createdAt || '',
+        })) as MarketToken[]
 
       if (afterCursor) {
         setTokens(prev => [...prev, ...newTokens])
