@@ -19,7 +19,7 @@ export default function Sidebar() {
     <nav className="w-64 bg-background-light p-4">
       <div className="space-y-8">
         <div className="flex items-center justify-center">
-          <span className="text-xl font-bold">Zora Platform</span>
+          <span className="text-xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-transparent bg-clip-text">ZoraRosetta</span>
         </div>
         
         <div className="space-y-2">

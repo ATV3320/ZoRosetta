@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import TrendingProjects from '@/components/TrendingProjects'
 import TrendAnalysis from '@/components/TrendAnalysis'
 import AIScore from '@/components/AIScore'
@@ -9,6 +10,15 @@ import MetadataGeneration from '@/components/MetadataGeneration'
 import WalletConnect from '@/components/WalletConnect'
 
 export default function Home() {
+  const router = useRouter()
+
+  useEffect(() => {
+    const hasVisited = localStorage.getItem('hasVisited')
+    if (!hasVisited) {
+      router.push('/welcome')
+    }
+  }, [router])
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="flex justify-between items-center mb-8 sticky top-0 z-20 bg-background py-4">
