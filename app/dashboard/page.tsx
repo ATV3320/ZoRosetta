@@ -105,7 +105,7 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-white mb-6">AI-Powered Insight & Trading Platform for Zora</h1>
         <div className="flex flex-col md:flex-row gap-6 mb-6">
           {/* Trending Projects (Most Valuable) */}
-          <div className="flex-1 bg-[#181f2e] rounded-xl p-6 shadow-lg min-w-[280px] max-h-80 overflow-y-auto">
+          <div className="flex-1 bg-[#181f2e] rounded-xl p-6 shadow-lg min-w-[280px] max-h-[320px] overflow-y-auto scrollbar-custom">
             <h2 className="text-lg font-semibold text-white mb-4">Trending Projects</h2>
             {loadingValuable ? (
               <div className="text-gray-400">Loading...</div>
@@ -115,18 +115,18 @@ export default function Dashboard() {
                   const imageUrl = coin.mediaContent?.previewImage?.small || coin.mediaContent?.previewImage?.medium;
                   return (
                     <li key={coin.id || idx} className="flex items-center justify-between bg-[#232b3e] rounded-lg px-4 py-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <AvatarWithSpinner
                           imageUrl={imageUrl}
                           alt={coin.symbol || coin.name || "coin"}
                           fallback={coin.symbol?.[0]?.toUpperCase() || '?'}
                         />
-                        <div>
-                          <div className="font-semibold text-white leading-none">{coin.name}</div>
-                          <div className="text-xs text-gray-400 leading-none">{coin.symbol}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-white leading-tight break-words">{coin.name}</div>
+                          <div className="text-xs text-gray-400 leading-tight">{coin.symbol}</div>
                         </div>
                       </div>
-                      <span className={`font-semibold ${Number(coin.marketCapDelta24h) < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                      <span className={`font-semibold whitespace-nowrap ml-2 ${Number(coin.marketCapDelta24h) < 0 ? 'text-red-400' : 'text-green-400'}`}>
                         {coin.marketCapDelta24h ? `${Number(coin.marketCapDelta24h).toFixed(2)}%` : '--'}
                       </span>
                     </li>
@@ -136,7 +136,7 @@ export default function Dashboard() {
             )}
           </div>
           {/* Top Gainers */}
-          <div className="flex-1 bg-[#181f2e] rounded-xl p-6 shadow-lg min-w-[280px] max-h-80 overflow-y-auto">
+          <div className="flex-1 bg-[#181f2e] rounded-xl p-6 shadow-lg min-w-[280px] max-h-[320px] overflow-y-auto scrollbar-custom">
             <h2 className="text-lg font-semibold text-white mb-4">Top Gainers</h2>
             {loadingGainers ? (
               <div className="text-gray-400">Loading...</div>
@@ -146,18 +146,18 @@ export default function Dashboard() {
                   const imageUrl = coin.mediaContent?.previewImage?.small || coin.mediaContent?.previewImage?.medium;
                   return (
                     <li key={coin.id || idx} className="flex items-center justify-between bg-[#232b3e] rounded-lg px-4 py-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <AvatarWithSpinner
                           imageUrl={imageUrl}
                           alt={coin.symbol || coin.name || "coin"}
                           fallback={coin.symbol?.[0]?.toUpperCase() || '?'}
                         />
-                        <div>
-                          <div className="font-semibold text-white leading-none">{coin.name}</div>
-                          <div className="text-xs text-gray-400 leading-none">{coin.symbol}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-white leading-tight break-words">{coin.name}</div>
+                          <div className="text-xs text-gray-400 leading-tight">{coin.symbol}</div>
                         </div>
                       </div>
-                      <span className={`font-semibold ${Number(coin.marketCapDelta24h) < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                      <span className={`font-semibold whitespace-nowrap ml-2 ${Number(coin.marketCapDelta24h) < 0 ? 'text-red-400' : 'text-green-400'}`}>
                         {coin.marketCapDelta24h ? `${Number(coin.marketCapDelta24h).toFixed(2)}%` : '--'}
                       </span>
                     </li>

@@ -17,7 +17,7 @@ export function Navbar() {
       <div className="space-y-4">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
-            Zorosetta
+            ZoRosetta
           </h1>
         </div>
         <div className="space-y-2">

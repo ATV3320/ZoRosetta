@@ -18,7 +18,7 @@ export default function Welcome() {
         className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 mb-6 text-center"
         style={{ fontFamily: "'HarryP', serif" }}
       >
-        Welcome to Zorosetta
+        Welcome to ZoRosetta
       </h1>
       <p
         className="text-xl text-blue-500 mb-2 text-center"
