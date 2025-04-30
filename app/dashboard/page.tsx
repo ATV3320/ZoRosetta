@@ -29,6 +29,8 @@ interface MetadataFormData {
   tokenDescription: string;
   tokenPrompt: string;
   generatedImage?: string; // Base64 or URL of generated image
+  ipfsUrl?: string;
+  ipfsCid?: string;
 }
 
 // Add this constant at the top of the file
@@ -215,6 +217,58 @@ export default function Dashboard() {
         ...prev,
         generatedImage: USE_LOCAL_IMAGE ? imageResult : imageResult
       }));
+
+      // If we have a generated image, upload it to Pinata
+      if (imageResult) {
+        try {
+          // Convert base64 to blob if needed
+          let fileToUpload;
+          if (imageResult.startsWith('data:image')) {
+            const base64Data = imageResult.split(',')[1];
+            const byteCharacters = atob(base64Data);
+            const byteArrays = [];
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteArrays.push(byteCharacters.charCodeAt(i));
+            }
+            const byteArray = new Uint8Array(byteArrays);
+            fileToUpload = new Blob([byteArray], { type: 'image/png' });
+          } else {
+            // If it's a URL, fetch the image
+            const response = await fetch(imageResult);
+            fileToUpload = await response.blob();
+          }
+
+          // Create FormData and append a File object with correct name and type
+          const formData = new FormData();
+          const namedFile = new File([fileToUpload], 'generated-image.png', { type: 'image/png' });
+          formData.append('file', namedFile);
+
+          // Upload to Pinata
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.details || 'Upload failed');
+          }
+
+          const { url, cid } = await uploadResponse.json();
+          console.log('Uploaded to IPFS:', { url, cid });
+          
+          // Update form data with IPFS information
+          setFormData(prev => ({
+            ...prev,
+            ipfsUrl: url,
+            ipfsCid: cid
+          }));
+        } catch (error) {
+          const uploadError = error as Error;
+          console.error('Upload error:', uploadError);
+          alert(`Failed to upload image to IPFS: ${uploadError.message}`);
+        }
+      }
     } catch (error) {
       console.error('Form submission error:', error);
       alert('Failed to generate image. Please try again.');
@@ -230,7 +284,9 @@ export default function Dashboard() {
       tokenName: '',
       tokenDescription: '',
       tokenPrompt: '',
-      generatedImage: undefined
+      generatedImage: undefined,
+      ipfsUrl: undefined,
+      ipfsCid: undefined
     });
   };
 
@@ -386,8 +442,20 @@ export default function Dashboard() {
                   className="w-full object-cover"
                 />
               </div>
+              {formData.ipfsUrl && (
+                <div className="text-center space-y-2">
+                  <p className="text-green-400">Image uploaded to IPFS!</p>
+                  <a 
+                    href={formData.ipfsUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300"
+                  >
+                    View on IPFS
+                  </a>
+                </div>
+              )}
               <div className="text-center space-y-4">
-                <p className="text-green-400">Image generated successfully!</p>
                 <button
                   type="button"
                   onClick={handleCloseModal}
