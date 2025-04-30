@@ -28,7 +28,11 @@ interface MetadataFormData {
   tokenName: string;
   tokenDescription: string;
   tokenPrompt: string;
+  generatedImage?: string; // Base64 or URL of generated image
 }
+
+// Add this constant at the top of the file
+const USE_LOCAL_IMAGE = true; //toggle this to true for development, false for production
 
 function AvatarWithSpinner({ imageUrl, alt, fallback }: { imageUrl?: string; alt: string; fallback: string }) {
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -77,6 +81,23 @@ function AvatarWithSpinner({ imageUrl, alt, fallback }: { imageUrl?: string; alt
 
 // Add Modal component
 function Modal({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // We'll handle the actual closing logic in the parent component
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -106,6 +127,7 @@ export default function Dashboard() {
     tokenDescription: '',
     tokenPrompt: '',
   });
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     async function fetchMostValuable() {
@@ -132,17 +154,82 @@ export default function Dashboard() {
     fetchTopGainers();
   }, []);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const generateImage = async (prompt: string) => {
+    try {
+      // If in development mode, return local image
+      if (USE_LOCAL_IMAGE) {
+        // Artificial delay to simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return '/glassbg.jpg'; // This should be in your public folder
+      }
+
+      // Original API call code
+      const response = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_STABILITY_API_KEY}`,
+        },
+        body: JSON.stringify({
+          text_prompts: [{ text: prompt }],
+          cfg_scale: 7,
+          height: 1024,
+          width: 1024,
+          steps: 30,
+          samples: 1,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`API Error: ${response.status} - ${errorData.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      return `data:image/png;base64,${data.artifacts[0].base64}`;
+    } catch (error) {
+      console.error('Detailed error:', error);
+      throw error;
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Form data:', formData);
-    setIsModalOpen(false);
-    // Reset form
-    setFormData({
-      tokenName: '',
-      tokenDescription: '',
-      tokenPrompt: '',
-    });
+    setIsGenerating(true);
+    
+    try {
+      const imageResult = await generateImage(formData.tokenPrompt);
+      setFormData(prev => ({
+        ...prev,
+        // If using local image, don't add data:image prefix
+        generatedImage: USE_LOCAL_IMAGE ? imageResult : imageResult
+      }));
+    } catch (error) {
+      console.error('Form submission error:', error);
+      alert('Failed to generate image. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    const hasFormContent = formData.tokenName || formData.tokenDescription || formData.tokenPrompt;
+    
+    if (hasFormContent) {
+      const shouldClose = window.confirm('You have unsaved changes. Are you sure you want to close this form?');
+      if (shouldClose) {
+        setIsModalOpen(false);
+        // Reset form data when confirmed to close
+        setFormData({
+          tokenName: '',
+          tokenDescription: '',
+          tokenPrompt: '',
+          generatedImage: undefined
+        });
+      }
+    } else {
+      setIsModalOpen(false);
+    }
   };
 
   return (
@@ -267,7 +354,7 @@ export default function Dashboard() {
               id="tokenDescription"
               value={formData.tokenDescription}
               onChange={(e) => setFormData({ ...formData, tokenDescription: e.target.value })}
-              className="w-full bg-[#232b3e] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[50px]"
+              className="w-full bg-[#232b3e] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[50px] custom-scrollbar"
               required
             />
           </div>
@@ -279,27 +366,104 @@ export default function Dashboard() {
               id="tokenPrompt"
               value={formData.tokenPrompt}
               onChange={(e) => setFormData({ ...formData, tokenPrompt: e.target.value })}
-              className="w-full bg-[#232b3e] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+              className="w-full bg-[#232b3e] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] custom-scrollbar"
               required
             />
           </div>
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
-            >
-              Generate
-            </button>
-          </div>
+          {formData.generatedImage && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                Generated Image
+              </label>
+              <div className="rounded-lg overflow-hidden mb-4">
+                <Image
+                  src={formData.generatedImage}
+                  alt="Generated token image"
+                  width={256}
+                  height={256}
+                  className="w-full object-cover"
+                />
+              </div>
+              <div className="text-center space-y-4">
+                <p className="text-green-400">Image generated successfully!</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    // Reset form data
+                    setFormData({
+                      tokenName: '',
+                      tokenDescription: '',
+                      tokenPrompt: '',
+                      generatedImage: undefined
+                    });
+                  }}
+                  className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                  Back to Dashboard
+                </button>
+              </div>
+            </div>
+          )}
+          {!formData.generatedImage && (
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isGenerating}
+                className={`px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center ${
+                  isGenerating ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {isGenerating ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Generating...
+                  </>
+                ) : (
+                  'Generate'
+                )}
+              </button>
+            </div>
+          )}
         </form>
       </Modal>
+
+      {/* Add this style block at the end of your component, before the final closing tag */}
+      <style jsx global>{`
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #3b4659 #232b3e;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #232b3e;
+          border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #3b4659;
+          border-radius: 3px;
+          border: 2px solid #232b3e;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background-color: #4a5a75;
+        }
+      `}</style>
     </AppLayout>
   );
 }
