@@ -79,32 +79,44 @@ function AvatarWithSpinner({ imageUrl, alt, fallback }: { imageUrl?: string; alt
   );
 }
 
-// Add Modal component
+// Update Modal component
 function Modal({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // We'll handle the actual closing logic in the parent component
         onClose();
       }
     };
 
     if (isOpen) {
       window.addEventListener('keydown', handleEscape);
+      // Add overflow hidden to body when modal is open
+      document.body.style.overflow = 'hidden';
     }
 
     return () => {
       window.removeEventListener('keydown', handleEscape);
+      // Remove overflow hidden when modal is closed
+      document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#181f2e] rounded-xl p-6 max-w-md w-full mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop with blur effect */}
+      <div 
+        className="absolute inset-0 backdrop-blur-md bg-black/30"
+        onClick={onClose}  // Close modal when clicking backdrop
+      />
+      {/* Modal content */}
+      <div className="relative bg-[#181f2e] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div className="flex justify-end">
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-white transition-colors"
+          >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -462,6 +474,11 @@ export default function Dashboard() {
 
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background-color: #4a5a75;
+        }
+
+        /* Add smooth transition for modal */
+        .fixed {
+          transition: backdrop-filter 0.3s ease;
         }
       `}</style>
     </AppLayout>
