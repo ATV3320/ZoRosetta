@@ -8,7 +8,7 @@ import {
   getCoinsNew,
 } from "@zoralabs/coins-sdk";
 import Image from "next/image";
-import { AppLayout } from "../layout";
+import { AppLayout } from "@/app/components/AppLayout";
 
 const TABS = [
   { key: "top-volume", label: "Top Volume" },

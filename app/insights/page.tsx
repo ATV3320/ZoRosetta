@@ -1,6 +1,6 @@
 "use client";
 
-import { AppLayout } from "../layout";
+import { AppLayout } from "@/app/components/AppLayout";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getCoinsMostValuable, getCoinsTopGainers } from "@zoralabs/coins-sdk";
-import { AppLayout } from "../layout";
+import { AppLayout } from "@/app/components/AppLayout";
 import Image from "next/image";
 
 interface MediaContent {
