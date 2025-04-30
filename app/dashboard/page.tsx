@@ -213,7 +213,6 @@ export default function Dashboard() {
       const imageResult = await generateImage(formData.tokenPrompt);
       setFormData(prev => ({
         ...prev,
-        // If using local image, don't add data:image prefix
         generatedImage: USE_LOCAL_IMAGE ? imageResult : imageResult
       }));
     } catch (error) {
@@ -225,23 +224,14 @@ export default function Dashboard() {
   };
 
   const handleCloseModal = () => {
-    const hasFormContent = formData.tokenName || formData.tokenDescription || formData.tokenPrompt;
-    
-    if (hasFormContent) {
-      const shouldClose = window.confirm('You have unsaved changes. Are you sure you want to close this form?');
-      if (shouldClose) {
-        setIsModalOpen(false);
-        // Reset form data when confirmed to close
-        setFormData({
-          tokenName: '',
-          tokenDescription: '',
-          tokenPrompt: '',
-          generatedImage: undefined
-        });
-      }
-    } else {
-      setIsModalOpen(false);
-    }
+    setIsModalOpen(false);
+    // Reset form data
+    setFormData({
+      tokenName: '',
+      tokenDescription: '',
+      tokenPrompt: '',
+      generatedImage: undefined
+    });
   };
 
   return (
@@ -342,7 +332,7 @@ export default function Dashboard() {
       </div>
 
       {/* Metadata Generation Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal}>
         <h2 className="text-xl font-semibold text-white mb-4">Generate Token Metadata</h2>
         <form onSubmit={handleFormSubmit} className="space-y-4">
           <div>
@@ -400,16 +390,7 @@ export default function Dashboard() {
                 <p className="text-green-400">Image generated successfully!</p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    // Reset form data
-                    setFormData({
-                      tokenName: '',
-                      tokenDescription: '',
-                      tokenPrompt: '',
-                      generatedImage: undefined
-                    });
-                  }}
+                  onClick={handleCloseModal}
                   className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
                 >
                   Back to Dashboard
@@ -421,7 +402,7 @@ export default function Dashboard() {
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={handleCloseModal}
                 className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
               >
                 Cancel
