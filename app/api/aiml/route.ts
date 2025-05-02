@@ -3,88 +3,94 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+interface Coin {
+  id?: string;
+  name?: string;
+  symbol?: string;
+  marketCapDelta24h?: string;
+  mediaContent?: {
+    mimeType?: string;
+    originalUri: string;
+    previewImage?: {
+      small: string;
+      medium: string;
+      blurhash?: string;
+    };
+  };
+}
+
 interface AIMLRequest {
   tokenDescription: string;
   marketData: {
-    mostValuable: any[];
-    topGainers: any[];
+    mostValuable: Coin[];
+    topGainers: Coin[];
   };
+  isLocalMode?: boolean;
 }
+
+interface AIMLResponse {
+  shortTermSuccess: number;
+  ideaAuthenticity: number;
+  reliability: number;
+  analysis: string;
+  improvements: string[];
+}
+
+const getMockAnalysis = (): AIMLResponse => {
+  const mockResponses: AIMLResponse[] = [
+    {
+      shortTermSuccess: 75,
+      ideaAuthenticity: 80,
+      reliability: 70,
+      analysis: "This token idea shows strong potential in the current market. The concept aligns well with existing successful projects while offering unique value propositions. The integration with Zora's ecosystem could provide significant advantages for early adopters.",
+      improvements: [
+        "Consider implementing additional governance features to increase community engagement",
+        "Explore partnerships with existing Zora projects to expand reach",
+        "Develop a detailed roadmap with clear milestones and deliverables"
+      ]
+    },
+    {
+      shortTermSuccess: 85,
+      ideaAuthenticity: 75,
+      reliability: 80,
+      analysis: "The proposed token demonstrates innovative thinking and market awareness. The focus on community-driven features and integration with Zora's infrastructure positions it well for sustainable growth. The tokenomics model appears well-thought-out.",
+      improvements: [
+        "Strengthen the token utility by adding more use cases",
+        "Create a comprehensive marketing strategy for launch",
+        "Consider implementing a vesting schedule for early supporters"
+      ]
+    },
+    {
+      shortTermSuccess: 70,
+      ideaAuthenticity: 85,
+      reliability: 75,
+      analysis: "This token concept shows promise with its unique approach to solving common challenges in the space. The integration with Zora's ecosystem provides a solid foundation for growth, while the proposed features address clear market needs.",
+      improvements: [
+        "Enhance liquidity mechanisms to ensure stable trading",
+        "Develop a strong community engagement program",
+        "Consider implementing cross-chain compatibility for wider reach"
+      ]
+    }
+  ];
+  
+  return mockResponses[Math.floor(Math.random() * mockResponses.length)];
+};
 
 export async function POST(request: NextRequest) {
   try {
     const body: AIMLRequest = await request.json();
     
-    if (!process.env.AIML_API_KEY) {
-      throw new Error('AIML API key not configured');
+    // If in local mode, return mock data
+    if (body.isLocalMode) {
+      return NextResponse.json(getMockAnalysis());
     }
 
-    // Prepare the prompt for AIML API
-    const prompt = `Analyze this token idea and provide insights based on current market trends:
-
-Token Description: ${body.tokenDescription}
-
-Market Context:
-- Most Valuable Tokens: ${JSON.stringify(body.marketData.mostValuable.slice(0, 3))}
-- Top Gainers: ${JSON.stringify(body.marketData.topGainers.slice(0, 3))}
-
-Please provide:
-1. A short-term success score (0-100)
-2. An idea authenticity score (0-100)
-3. A reliability score (0-100)
-4. A brief analysis comment
-5. Three specific suggestions for improvement
-
-Format the response as JSON with these exact keys:
-{
-  "shortTermSuccess": number,
-  "ideaAuthenticity": number,
-  "reliability": number,
-  "analysis": string,
-  "improvements": string[]
-}`;
-
-    const response = await fetch('https://api.aimlapi.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.AIML_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert in analyzing token ideas and market trends. Provide accurate, data-driven insights and specific improvement suggestions."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 800
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`AIML API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content;
-    
-    // Parse the JSON response from AIML API
-    const parsedResponse = JSON.parse(content);
-    
-    return NextResponse.json(parsedResponse);
+    // TODO: Implement actual AI analysis
+    return NextResponse.json(getMockAnalysis());
   } catch (error) {
-    console.error('AIML API error:', error);
+    console.error('AIML analysis error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to analyze token idea',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to analyze token idea' },
       { status: 500 }
     );
   }

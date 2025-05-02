@@ -483,7 +483,8 @@ export default function Dashboard() {
           marketData: {
             mostValuable,
             topGainers
-          }
+          },
+          isLocalMode: USE_LOCAL_IMAGE
         })
       });
 
