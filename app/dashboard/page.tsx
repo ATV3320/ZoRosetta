@@ -312,7 +312,6 @@ export default function Dashboard() {
   const [loadingGainers, setLoadingGainers] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInsightsModalOpen, setIsInsightsModalOpen] = useState(false);
-  const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
   const [tokenDescription, setTokenDescription] = useState('');
   const [formData, setFormData] = useState<MetadataFormData>({
     tokenName: '',
@@ -510,16 +509,17 @@ export default function Dashboard() {
   const handleCloseInsightsModal = () => {
     setIsInsightsModalOpen(false);
     setTokenDescription('');
-    setInsightsData(null);
+    setAnalysis(null);
+    setError(null);
   };
 
   // Update the confetti useEffect
   useEffect(() => {
     if (
-      insightsData &&
-      insightsData.shortTermSuccess >= 60 &&
-      insightsData.ideaAuthenticity >= 60 &&
-      insightsData.reliability >= 60
+      analysis &&
+      analysis.shortTermSuccess >= 60 &&
+      analysis.ideaAuthenticity >= 60 &&
+      analysis.reliability >= 60
     ) {
       const duration = 3000;
       const animationEnd = Date.now() + duration;
@@ -552,7 +552,7 @@ export default function Dashboard() {
 
       return () => clearInterval(interval);
     }
-  }, [insightsData]);
+  }, [analysis]);
 
   return (
     <AppLayout>
