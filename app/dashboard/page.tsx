@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getCoinsMostValuable, getCoinsTopGainers } from "@zoralabs/coins-sdk";
+import { getCoinsMostValuable, getCoinsTopGainers, createCoinCall } from "@zoralabs/coins-sdk";
 import { AppLayout } from "@/app/components/AppLayout";
 import Image from "next/image";
 import confetti from 'canvas-confetti';
+import { useAccount } from "wagmi";
+import { Address } from "viem";
+import { useWriteContract, useSimulateContract } from "wagmi";
 
 interface MediaContent {
   mimeType?: string;
@@ -305,6 +308,62 @@ function ProgressBar({
   );
 }
 
+// Add this interface with the other interfaces
+interface TokenFormData {
+  name: string;
+  symbol: string;
+  uri: string;
+}
+
+// Add this helper function at the top level of your file
+const CopyButton = ({ text }: { text: string }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text:', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="ml-2 p-1 hover:bg-[#2a3441] rounded-md transition-colors"
+      title="Copy to clipboard"
+    >
+      {copied ? (
+        <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+        </svg>
+      )}
+    </button>
+  );
+};
+
+// Add this utility function at the top level of your file
+const convertPinataToIpfsUrl = (pinataUrl: string): string => {
+  try {
+    // Extract the IPFS hash from the Pinata URL
+    const ipfsHash = pinataUrl.split('/ipfs/')[1];
+    if (!ipfsHash) {
+      throw new Error('Invalid Pinata URL format');
+    }
+    return `ipfs://${ipfsHash}`;
+  } catch (error) {
+    console.error('Error converting Pinata URL:', error);
+    return pinataUrl;
+  }
+};
+
 export default function Dashboard() {
   const [mostValuable, setMostValuable] = useState<Coin[]>([]);
   const [topGainers, setTopGainers] = useState<Coin[]>([]);
@@ -321,6 +380,14 @@ export default function Dashboard() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<InsightsData | null>(null);
+  const { isConnected, address } = useAccount();
+  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
+  const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
+  const [tokenFormData, setTokenFormData] = useState<TokenFormData>({
+    name: '',
+    symbol: '',
+    uri: ''
+  });
 
   useEffect(() => {
     async function fetchMostValuable() {
@@ -391,16 +458,16 @@ export default function Dashboard() {
     setIsGenerating(true);
     
     try {
+      // Step 1: Generate and upload the image
       const imageResult = await generateImage(formData.tokenPrompt);
       setFormData(prev => ({
         ...prev,
         generatedImage: USE_LOCAL_IMAGE ? imageResult : imageResult
       }));
 
-      // If we have a generated image, upload it to Pinata
       if (imageResult) {
         try {
-          // Convert base64 to blob if needed
+          // Convert image to blob
           let fileToUpload;
           if (imageResult.startsWith('data:image')) {
             const base64Data = imageResult.split(',')[1];
@@ -412,40 +479,75 @@ export default function Dashboard() {
             const byteArray = new Uint8Array(byteArrays);
             fileToUpload = new Blob([byteArray], { type: 'image/png' });
           } else {
-            // If it's a URL, fetch the image
             const response = await fetch(imageResult);
             fileToUpload = await response.blob();
           }
 
-          // Create FormData and append a File object with correct name and type
-          const formData = new FormData();
+          // Upload image to IPFS
+          const imageFormData = new FormData();
           const namedFile = new File([fileToUpload], 'generated-image.png', { type: 'image/png' });
-          formData.append('file', namedFile);
+          imageFormData.append('file', namedFile);
 
-          // Upload to Pinata
-          const uploadResponse = await fetch('/api/upload', {
+          const imageUploadResponse = await fetch('/api/upload', {
             method: 'POST',
-            body: formData,
+            body: imageFormData,
           });
 
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
-            throw new Error(errorData.details || 'Upload failed');
+          if (!imageUploadResponse.ok) {
+            throw new Error('Failed to upload image');
           }
 
-          const { url, cid } = await uploadResponse.json();
-          console.log('Uploaded to IPFS:', { url, cid });
+          const { cid: imageCid } = await imageUploadResponse.json();
+          const imageIpfsUrl = `ipfs://${imageCid}`;
+
+          // Step 2: Create metadata JSON
+          const metadata = {
+            name: formData.tokenName,
+            description: formData.tokenDescription,
+            image: imageIpfsUrl,
+            properties: {
+              category: "social"
+            }
+          };
+
+          // Convert metadata to Blob
+          const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+          const metadataFile = new File([metadataBlob], 'metadata.json', { type: 'application/json' });
           
-          // Update form data with IPFS information
+          // Upload metadata JSON to IPFS
+          const metadataFormData = new FormData();
+          metadataFormData.append('file', metadataFile);
+
+          const metadataUploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: metadataFormData,
+          });
+
+          if (!metadataUploadResponse.ok) {
+            throw new Error('Failed to upload metadata');
+          }
+
+          const { url: metadataUrl, cid: metadataCid } = await metadataUploadResponse.json();
+          const metadataIpfsUrl = `ipfs://${metadataCid}`;
+          
+          // Update form data with both URLs
           setFormData(prev => ({
             ...prev,
-            ipfsUrl: url,
-            ipfsCid: cid
+            ipfsUrl: metadataUrl, // The Pinata gateway URL (for preview)
+            ipfsCid: metadataCid,
+            uri: metadataIpfsUrl // The proper IPFS URL format
           }));
+
+          // If you're automatically filling the token form
+          setTokenFormData(prev => ({
+            ...prev,
+            uri: metadataIpfsUrl
+          }));
+
         } catch (error) {
           const uploadError = error as Error;
           console.error('Upload error:', uploadError);
-          alert(`Failed to upload image to IPFS: ${uploadError.message}`);
+          alert(`Failed to upload to IPFS: ${uploadError.message}`);
         }
       }
     } catch (error) {
@@ -554,6 +656,57 @@ export default function Dashboard() {
     }
   }, [analysis]);
 
+  const handleTokenFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!address) {
+      alert("Wallet not connected!");
+      return;
+    }
+
+    try {
+      const coinParams = {
+        name: tokenFormData.name,
+        symbol: tokenFormData.symbol,
+        uri: tokenFormData.uri,
+        payoutRecipient: address as Address,
+      };
+
+      const contractCallParams = createCoinCall(coinParams);
+      // TODO: Handle the contract call
+      console.log("Contract call params:", contractCallParams);
+    } catch (error) {
+      console.error("Error creating token:", error);
+      alert("Failed to create token. Please try again.");
+    }
+  };
+
+  const handleCloseTokenModal = () => {
+    setIsTokenModalOpen(false);
+    setTokenFormData({
+      name: '',
+      symbol: '',
+      uri: ''
+    });
+  };
+
+  // Add a function to handle switching between modals
+  const switchToMetadataForm = () => {
+    setIsTokenModalOpen(false); // Close token form
+    setIsModalOpen(true); // Open metadata form
+  };
+
+  // Update the metadata form's success handler to automatically fill the token URI
+  const handleMetadataSuccess = (pinataUrl: string) => {
+    const ipfsUrl = convertPinataToIpfsUrl(pinataUrl);
+    setTokenFormData(prev => ({
+      ...prev,
+      uri: ipfsUrl
+    }));
+    setIsModalOpen(false); // Close metadata modal
+    setIsTokenModalOpen(true); // Reopen token modal
+  };
+
   return (
     <AppLayout>
       <style jsx global>{`
@@ -658,7 +811,26 @@ export default function Dashboard() {
           <div className="bg-[#181f2e] rounded-xl p-6 shadow-lg flex flex-col justify-between">
             <h3 className="text-lg font-semibold text-white mb-2">Create New Token</h3>
             <p className="text-gray-400 mb-4">Build and Deploy Your Own Token</p>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors">Generate Token</button>
+            {isConnected ? (
+              <button 
+                onClick={() => setIsTokenModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors"
+              >
+                Generate Token
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <button 
+                  disabled
+                  className="w-full bg-blue-600/50 text-white/70 font-semibold py-2 rounded-lg cursor-not-allowed"
+                >
+                  Generate Token
+                </button>
+                <p className="text-sm text-red-400/80 text-center">
+                  Please connect your wallet first
+                </p>
+              </div>
+            )}
           </div>
           <div className="bg-[#181f2e] rounded-xl p-6 shadow-lg flex flex-col justify-between">
             <h3 className="text-lg font-semibold text-white mb-2">Metadata Generation</h3>
@@ -731,14 +903,30 @@ export default function Dashboard() {
               {formData.ipfsUrl && (
                 <div className="text-center space-y-2">
                   <p className="text-green-400">Image uploaded to IPFS!</p>
-                  <a 
-                    href={formData.ipfsUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300"
-                  >
-                    View on IPFS
-                  </a>
+                  <div className="flex items-center justify-center space-x-2">
+                    <a 
+                      href={formData.ipfsUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300"
+                    >
+                      View on IPFS
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(formData.ipfsUrl || '');
+                        // You can optionally add a toast notification here
+                      }}
+                      className="p-2 hover:bg-[#2a3441] rounded-md transition-colors"
+                      title="Copy IPFS URL"
+                    >
+                      <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               )}
               <div className="text-center space-y-4">
@@ -889,6 +1077,111 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Add Token Generation Modal */}
+      <Modal isOpen={isTokenModalOpen} onClose={handleCloseTokenModal}>
+        <h2 className="text-xl font-semibold text-white mb-4">Create New Token</h2>
+        <div className="mb-6 p-4 bg-[#1a1f2e] rounded-lg border border-[#2a3441]">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm text-gray-400">Connected Wallet (Payout Recipient)</span>
+            <CopyButton text={address || ''} />
+          </div>
+          <div className="flex items-center">
+            <code className="text-sm text-white font-mono break-all">
+              {address || 'No wallet connected'}
+            </code>
+          </div>
+        </div>
+        <form onSubmit={handleTokenFormSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="tokenName" className="block text-sm font-medium text-gray-400 mb-1">
+              Token Name *
+            </label>
+            <input
+              type="text"
+              id="tokenName"
+              value={tokenFormData.name}
+              onChange={(e) => setTokenFormData({ ...tokenFormData, name: e.target.value })}
+              className="w-full bg-[#232b3e] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., My Awesome Coin"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="tokenSymbol" className="block text-sm font-medium text-gray-400 mb-1">
+              Token Symbol *
+            </label>
+            <input
+              type="text"
+              id="tokenSymbol"
+              value={tokenFormData.symbol}
+              onChange={(e) => setTokenFormData({ ...tokenFormData, symbol: e.target.value.toUpperCase() })}
+              className="w-full bg-[#232b3e] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., MAC"
+              maxLength={6}
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">Maximum 6 characters, automatically converted to uppercase</p>
+          </div>
+
+          <div>
+            <label htmlFor="tokenUri" className="block text-sm font-medium text-gray-400 mb-1">
+              Metadata URI *
+            </label>
+            <input
+              type="text"
+              id="tokenUri"
+              value={tokenFormData.uri}
+              onChange={(e) => {
+                setTokenFormData({ ...tokenFormData, uri: e.target.value });
+              }}
+              className="w-full bg-[#232b3e] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter metadata URI"
+              required
+            />
+            <div className="mt-1 flex items-center space-x-2">
+              <p className="text-xs text-gray-500">Generate metadata and paste the metadata URI here</p>
+              <button
+                type="button"
+                onClick={switchToMetadataForm}
+                className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+              >
+                Generate Metadata 
+                <svg 
+                  className="w-3 h-3" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={handleCloseTokenModal}
+              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              Create Token
+            </button>
+          </div>
+        </form>
       </Modal>
 
       {/* Add this style block at the end of your component, before the final closing tag */}
