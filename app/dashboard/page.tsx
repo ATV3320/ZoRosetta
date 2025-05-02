@@ -320,6 +320,8 @@ export default function Dashboard() {
     tokenPrompt: '',
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<InsightsData | null>(null);
 
   useEffect(() => {
     async function fetchMostValuable() {
@@ -470,8 +472,11 @@ export default function Dashboard() {
 
   const handleInsightsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsGenerating(true);
-    
+    if (!tokenDescription) {
+      setError('Please enter a token description');
+      return;
+    }
+
     try {
       const response = await fetch('/api/aiml', {
         method: 'POST',
@@ -481,24 +486,24 @@ export default function Dashboard() {
         body: JSON.stringify({
           tokenDescription,
           marketData: {
-            mostValuable,
-            topGainers
+            mostValuable: [],
+            topGainers: []
           },
           isLocalMode: USE_LOCAL_IMAGE
-        })
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to analyze token idea');
+        const errorData = await response.json();
+        throw new Error(errorData.details || 'Failed to analyze token idea');
       }
 
       const data = await response.json();
-      setInsightsData(data);
-    } catch (error) {
-      console.error('Error analyzing token idea:', error);
-      alert('Failed to analyze token idea. Please try again.');
-    } finally {
-      setIsGenerating(false);
+      setAnalysis(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setAnalysis(null);
     }
   };
 
@@ -782,9 +787,21 @@ export default function Dashboard() {
 
       {/* Insights Modal */}
       <Modal isOpen={isInsightsModalOpen} onClose={handleCloseInsightsModal}>
-        {!insightsData ? (
+        {error ? (
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg mb-4">
+            <p className="text-red-400">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="mt-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : !analysis ? (
           <>
-            <h2 className="text-2xl font-bold text-white mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Test Your Token Idea</h2>
+            <h2 className="text-2xl font-bold text-white mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Test Your Token Idea
+            </h2>
             <form onSubmit={handleInsightsSubmit} className="space-y-4">
               <div>
                 <label htmlFor="tokenDescription" className="block text-sm font-medium text-gray-300 mb-2">
@@ -813,43 +830,43 @@ export default function Dashboard() {
           <div className="space-y-8 py-4">
             <h2 className="text-2xl font-bold text-center bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Insights Results ✨</h2>
             <div className="space-y-8">
-              <div className={insightsData.shortTermSuccess >= 60 ? 'progress-bar-glow' : ''}>
+              <div className={analysis.shortTermSuccess >= 60 ? 'progress-bar-glow' : ''}>
                 <ProgressBar
                   label="Short Term Success"
-                  progress={insightsData.shortTermSuccess}
+                  progress={analysis.shortTermSuccess}
                   backgroundColor="#1a1f2e"
                   foregroundColor={
-                    insightsData.shortTermSuccess < 40
+                    analysis.shortTermSuccess < 40
                       ? '#f87171'
-                      : insightsData.shortTermSuccess < 60
+                      : analysis.shortTermSuccess < 60
                       ? '#facc15'
                       : '#4ade80'
                   }
                 />
               </div>
-              <div className={insightsData.ideaAuthenticity >= 60 ? 'progress-bar-glow' : ''}>
+              <div className={analysis.ideaAuthenticity >= 60 ? 'progress-bar-glow' : ''}>
                 <ProgressBar
                   label="Idea Authenticity"
-                  progress={insightsData.ideaAuthenticity}
+                  progress={analysis.ideaAuthenticity}
                   backgroundColor="#1a1f2e"
                   foregroundColor={
-                    insightsData.ideaAuthenticity < 40
+                    analysis.ideaAuthenticity < 40
                       ? '#f87171'
-                      : insightsData.ideaAuthenticity < 60
+                      : analysis.ideaAuthenticity < 60
                       ? '#facc15'
                       : '#4ade80'
                   }
                 />
               </div>
-              <div className={insightsData.reliability >= 60 ? 'progress-bar-glow' : ''}>
+              <div className={analysis.reliability >= 60 ? 'progress-bar-glow' : ''}>
                 <ProgressBar
                   label="Reliability Score"
-                  progress={insightsData.reliability}
+                  progress={analysis.reliability}
                   backgroundColor="#1a1f2e"
                   foregroundColor={
-                    insightsData.reliability < 40
+                    analysis.reliability < 40
                       ? '#f87171'
-                      : insightsData.reliability < 60
+                      : analysis.reliability < 60
                       ? '#facc15'
                       : '#4ade80'
                   }
@@ -858,11 +875,11 @@ export default function Dashboard() {
             </div>
             <div className="mt-8 p-4 bg-[#232b3e] rounded-lg max-h-[300px] overflow-y-auto custom-scrollbar">
               <h3 className="text-lg font-semibold text-white mb-2 sticky top-0 bg-[#232b3e] py-2">Analysis</h3>
-              <p className="text-gray-300 mb-4">{insightsData.analysis}</p>
+              <p className="text-gray-300 mb-4">{analysis.analysis}</p>
               
               <h3 className="text-lg font-semibold text-white mb-2 sticky top-12 bg-[#232b3e] py-2">Suggested Improvements</h3>
               <ul className="space-y-2">
-                {insightsData.improvements.map((improvement, index) => (
+                {analysis.improvements.map((improvement, index) => (
                   <li key={index} className="text-gray-300 flex items-start">
                     <span className="text-blue-400 mr-2">•</span>
                     {improvement}
