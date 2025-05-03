@@ -1714,19 +1714,30 @@ export default function Dashboard() {
                 />
               </div>
             </div>
-            <div className="mt-8 p-4 bg-[#232b3e] rounded-lg max-h-[300px] overflow-y-auto custom-scrollbar">
-              <h3 className="text-lg font-semibold text-white mb-2 sticky top-0 bg-[#232b3e] py-2">Analysis</h3>
-              <p className="text-gray-300 mb-4">{analysis.analysis}</p>
+            <div className="mt-8 rounded-lg bg-[#232b3e] overflow-hidden">
+              {/* Header section with sticky positioning */}
+              <div className="sticky top-0 z-10 bg-[#232b3e] border-b border-gray-700/30">
+                <h3 className="text-lg font-semibold text-white p-4 pb-2">Analysis</h3>
+              </div>
               
-              <h3 className="text-lg font-semibold text-white mb-2 sticky top-12 bg-[#232b3e] py-2">Suggested Improvements</h3>
-              <ul className="space-y-2">
-                {analysis.improvements.map((improvement, index) => (
-                  <li key={index} className="text-gray-300 flex items-start">
-                    <span className="text-blue-400 mr-2">•</span>
-                    {improvement}
-                  </li>
-                ))}
-              </ul>
+              {/* Scrollable content section */}
+              <div className="p-4 pt-2 max-h-[280px] overflow-y-auto custom-scrollbar">
+                <p className="text-gray-300 mb-6">{analysis.analysis}</p>
+                
+                {/* Second header with sticky positioning */}
+                <div className="sticky top-0 z-10 bg-[#232b3e] border-b border-gray-700/30 -mx-4 px-4 py-2 mb-3">
+                  <h3 className="text-lg font-semibold text-white">Suggested Improvements</h3>
+                </div>
+                
+                <ul className="space-y-2">
+                  {analysis.improvements.map((improvement, index) => (
+                    <li key={index} className="text-gray-300 flex items-start">
+                      <span className="text-blue-400 mr-2">•</span>
+                      {improvement}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         )}
