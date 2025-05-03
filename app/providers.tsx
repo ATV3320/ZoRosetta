@@ -7,7 +7,7 @@ import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const config = createConfig({
-  chains: [mainnet, zora, optimism, base, arbitrum],
+  chains: [base, mainnet, zora, optimism, arbitrum],
   connectors: [metaMask()],
   transports: {
     [mainnet.id]: http(),
