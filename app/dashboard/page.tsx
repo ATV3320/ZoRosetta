@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { getCoinsMostValuable, getCoinsTopGainers, createCoinCall } from "@zoralabs/coins-sdk";
 import { AppLayout } from "@/app/components/AppLayout";
 import Image from "next/image";
@@ -646,7 +646,7 @@ const generateSampleMetadata = (name: string, description: string, imageUrl: str
 // Add a function to switch networks using window.ethereum directly
 const switchToBase = async () => {
   if (!window.ethereum) {
-    alert("MetaMask is not installed!");
+    showToast("MetaMask is not installed!", "error");
     return false;
   }
 
@@ -656,6 +656,7 @@ const switchToBase = async () => {
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: '0x2105' }], // Base chainId in hex (8453)
     });
+    showToast("Please try creating your token again after switching to Base network", "info");
     return true;
   } catch (switchError: any) {
     // This error code means the chain has not been added to MetaMask
@@ -677,13 +678,14 @@ const switchToBase = async () => {
             },
           ],
         });
-        return true;
+        showToast("Failed to switch to Base network. Please switch manually and try again.", "error");
+        return false;
       } catch (addError) {
         console.error('Error adding Base chain:', addError);
         return false;
       }
     }
-    console.error('Error switching to Base chain:', switchError);
+    showToast('Error switching to Base chain:', switchError, "error");
     return false;
   }
 };
@@ -722,6 +724,128 @@ const createDataUriMetadata = (name: string, description: string, imageUrl: stri
       properties: { category: "social" }
     }))}`;
   }
+};
+
+// Add these interfaces after other interfaces
+interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  duration?: number;
+}
+
+// Add this component after other component declarations
+function ToastContainer() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  
+  // Global toast event listener
+  useEffect(() => {
+    const handleToast = (event: CustomEvent<Toast>) => {
+      const newToast = {
+        id: Date.now().toString(),
+        ...event.detail,
+        duration: event.detail.duration || 5000,
+      };
+      setToasts(prev => [...prev, newToast]);
+      
+      // Auto remove toast after duration
+      setTimeout(() => {
+        removeToast(newToast.id);
+      }, newToast.duration);
+    };
+    
+    window.addEventListener('toast' as any, handleToast as EventListener);
+    return () => window.removeEventListener('toast' as any, handleToast as EventListener);
+  }, []);
+  
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+  
+  const getToastClasses = (type: Toast['type']) => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-500 border-green-600';
+      case 'error':
+        return 'bg-red-500 border-red-600';
+      case 'warning':
+        return 'bg-yellow-500 border-yellow-600';
+      case 'info':
+        return 'bg-blue-500 border-blue-600';
+      default:
+        return 'bg-gray-700 border-gray-800';
+    }
+  };
+  
+  const getToastIcon = (type: Toast['type']) => {
+    switch (type) {
+      case 'success':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        );
+      case 'error':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        );
+      case 'warning':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        );
+      case 'info':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
+  
+  return (
+    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-md">
+      {toasts.map(toast => (
+        <div 
+          key={toast.id}
+          className={`${getToastClasses(toast.type)} text-white p-4 rounded-lg shadow-lg border flex items-start gap-3 animate-fade-in transition-all duration-300 ease-in-out`}
+          style={{ opacity: 1, transform: 'translateX(0)' }}
+        >
+          <div className="flex-shrink-0">
+            {getToastIcon(toast.type)}
+          </div>
+          <div className="flex-1">
+            <p>{toast.message}</p>
+          </div>
+          <button 
+            onClick={() => removeToast(toast.id)}
+            className="ml-3 flex-shrink-0 text-white hover:text-gray-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Add this helper function to show toasts globally
+const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info', duration = 5000) => {
+  const event = new CustomEvent('toast', {
+    detail: {
+      message,
+      type,
+      duration
+    }
+  });
+  window.dispatchEvent(event);
 };
 
 export default function Dashboard() {
@@ -979,12 +1103,13 @@ export default function Dashboard() {
         } catch (error) {
           const uploadError = error as Error;
           console.error('Upload error:', uploadError);
+          showToast(`Failed to upload to IPFS: ${uploadError.message}`, "error");
           throw new Error(`Failed to upload to IPFS: ${uploadError.message}`);
         }
       }
     } catch (error) {
       console.error('Form submission error:', error);
-      alert('Failed to generate or upload image. Please try again.');
+      showToast('Failed to generate or upload image. Please try again.', "error");
     } finally {
       setIsGenerating(false);
     }
@@ -1092,7 +1217,7 @@ export default function Dashboard() {
     e.preventDefault();
     
     if (!address) {
-      alert("Wallet not connected!");
+      showToast("Wallet not connected!", "error");
       return;
     }
 
@@ -1105,9 +1230,9 @@ export default function Dashboard() {
       if (shouldSwitch) {
         const switched = await switchToBase();
         if (switched) {
-          alert("Please try creating your token again after switching to Base network");
+          showToast("Please try creating your token again after switching to Base network", "info");
         } else {
-          alert("Failed to switch to Base network. Please switch manually and try again.");
+          showToast("Failed to switch to Base network. Please switch manually and try again.", "error");
         }
         return;
       } else {
@@ -1182,7 +1307,7 @@ export default function Dashboard() {
         // Execute the transaction
         writeContract(contractCallParams);
         
-        alert("Transaction initiated! Check your wallet to confirm the transaction.");
+        showToast("Transaction initiated! Check your wallet to confirm the transaction.", "success");
         handleCloseTokenModal();
       } catch (error) {
         console.error("Error in contract creation:", error);
@@ -1190,20 +1315,20 @@ export default function Dashboard() {
         // Show appropriate message
         if (error instanceof Error) {
           if (error.message.includes("Metadata fetch failed") || error.message.includes("CORS")) {
-            alert("There was an issue validating the token metadata. Please try again or use a different image URL.");
+            showToast("There was an issue validating the token metadata. Please try again or use a different image URL.", "warning");
           } else if (error.message.includes("User rejected the request")) {
-            alert("Transaction was rejected in the wallet.");
+            showToast("Transaction was rejected in the wallet.", "info");
           } else {
-            alert(`Failed to create token: ${error.message}`);
+            showToast(`Failed to create token: ${error.message}`, "error");
           }
         } else {
-          alert("Failed to create token due to an unknown error.");
+          showToast("Failed to create token due to an unknown error.", "error");
         }
       }
     } catch (error) {
       console.error("Error in token form submission:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Error: ${errorMessage}`);
+      showToast(`Error: ${errorMessage}`, "error");
     }
   };
 
@@ -1224,6 +1349,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
+      <ToastContainer />
       <style jsx global>{`
         @keyframes glow {
           0% {
@@ -1642,7 +1768,7 @@ export default function Dashboard() {
                   onClick={async () => {
                     const success = await switchToBase();
                     if (!success) {
-                      alert("Failed to switch networks. Please try switching manually in your wallet.");
+                      showToast("Failed to switch networks. Please try switching manually in your wallet.", "error");
                     }
                   }}
                   className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-md text-sm transition-colors"
