@@ -4,7 +4,7 @@ import { AppLayout } from "@/app/components/AppLayout";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
-export default function Insights() {
+export default function AdvancedInsights() {
   const router = useRouter();
 
   return (
@@ -39,7 +39,7 @@ export default function Insights() {
                 transition={{ delay: 0.6 }}
                 className="text-xl text-gray-300 mb-8"
               >
-                Coming in Wave 4 with the best integration of Zora Coins SDK with AI
+                Coming in Wave 5 with the best integration of Zora Coins SDK with AI
               </motion.p>
               
               <motion.div

@@ -62,7 +62,7 @@ interface InsightsData {
 }
 
 // Add this constant at the top of the file
-const USE_LOCAL_IMAGE = true; //toggle this to true for development, false for production
+const USE_LOCAL_IMAGE = false; //toggle this to true for development, false for production
 
 interface LoaderBar {
   width: number;
@@ -931,30 +931,22 @@ export default function Dashboard() {
         return '/glassbg.jpg'; // This should be in your public folder
       }
 
-      // Original API call code
-      const response = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
+      // Call our server-side API route instead of Stability API directly
+      const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.STABILITY_API_KEY}`,
         },
-        body: JSON.stringify({
-          text_prompts: [{ text: prompt }],
-          cfg_scale: 7,
-          height: 1024,
-          width: 1024,
-          steps: 30,
-          samples: 1,
-        }),
+        body: JSON.stringify({ prompt }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`API Error: ${response.status} - ${errorData.message || response.statusText}`);
+        throw new Error(errorData.error || 'Failed to generate image');
       }
 
       const data = await response.json();
-      return `data:image/png;base64,${data.artifacts[0].base64}`;
+      return data.image;
     } catch (error) {
       console.error('Detailed error:', error);
       throw error;
