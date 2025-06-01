@@ -9,6 +9,7 @@ import {
 } from "@zoralabs/coins-sdk";
 import Image from "next/image";
 import { AppLayout } from "@/app/components/AppLayout";
+import { CoinDetailsModal } from "@/app/components/CoinDetailsModal";
 
 const TABS = [
   { key: "top-volume", label: "Top Volume" },
@@ -138,6 +139,8 @@ export default function Trends() {
   const [coins, setCoins] = useState<Coin[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("top-volume");
+  const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     async function fetchCoins() {
@@ -205,7 +208,14 @@ export default function Trends() {
                 coins.map((coin) => {
                   const imageUrl = coin.mediaContent?.previewImage?.small || coin.mediaContent?.previewImage?.medium;
                   return (
-                    <tr key={coin.address} className="border-b border-[#232b3e] hover:bg-[#232b3e] transition-colors">
+                    <tr 
+                      key={coin.address} 
+                      className="border-b border-[#232b3e] hover:bg-[#232b3e] transition-colors cursor-pointer"
+                      onClick={() => {
+                        setSelectedCoin(coin);
+                        setIsModalOpen(true);
+                      }}
+                    >
                       <td className="py-3 px-4 flex items-center gap-2">
                         <AvatarWithSpinner
                           imageUrl={imageUrl}
@@ -235,6 +245,12 @@ export default function Trends() {
           </table>
         </div>
       </div>
+
+      <CoinDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        coin={selectedCoin}
+      />
     </AppLayout>
   );
 }

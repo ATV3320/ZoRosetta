@@ -9,6 +9,7 @@ import { useAccount, useChainId, useWriteContract, useConfig } from "wagmi";
 import { Address } from "viem";
 import { switchChain } from 'wagmi/actions';
 import { base } from "wagmi/chains";
+import { CoinDetailsModal } from "@/app/components/CoinDetailsModal";
 
 // Modify the TypeScript declaration for window.ethereum
 interface EthereumProvider {
@@ -875,6 +876,8 @@ export default function Dashboard() {
     uri: ''
   });
   const [isCreatingToken, setIsCreatingToken] = useState(false);
+  const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
+  const [isCoinModalOpen, setIsCoinModalOpen] = useState(false);
   
   // Wagmi contract interaction
   const { writeContract } = useWriteContract();
@@ -1421,7 +1424,14 @@ export default function Dashboard() {
                   {mostValuable.map((coin, idx) => {
                     const imageUrl = coin.mediaContent?.previewImage?.small || coin.mediaContent?.previewImage?.medium;
                     return (
-                      <li key={coin.id || idx} className="flex items-center justify-between bg-[#232b3e] rounded-lg px-4 py-2">
+                      <li 
+                        key={coin.id || idx} 
+                        className="flex items-center justify-between bg-[#232b3e] rounded-lg px-4 py-2 cursor-pointer hover:bg-[#2a3447] transition-colors"
+                        onClick={() => {
+                          setSelectedCoin(coin);
+                          setIsCoinModalOpen(true);
+                        }}
+                      >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <AvatarWithSpinner
                             imageUrl={imageUrl}
@@ -1454,7 +1464,14 @@ export default function Dashboard() {
                   {topGainers.map((coin, idx) => {
                     const imageUrl = coin.mediaContent?.previewImage?.small || coin.mediaContent?.previewImage?.medium;
                     return (
-                      <li key={coin.id || idx} className="flex items-center justify-between bg-[#232b3e] rounded-lg px-4 py-2">
+                      <li 
+                        key={coin.id || idx} 
+                        className="flex items-center justify-between bg-[#232b3e] rounded-lg px-4 py-2 cursor-pointer hover:bg-[#2a3447] transition-colors"
+                        onClick={() => {
+                          setSelectedCoin(coin);
+                          setIsCoinModalOpen(true);
+                        }}
+                      >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <AvatarWithSpinner
                             imageUrl={imageUrl}
@@ -1923,6 +1940,12 @@ export default function Dashboard() {
           </div>
         </form>
       </Modal>
+
+      <CoinDetailsModal
+        isOpen={isCoinModalOpen}
+        onClose={() => setIsCoinModalOpen(false)}
+        coin={selectedCoin}
+      />
     </AppLayout>
   );
 }
